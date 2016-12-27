@@ -1,0 +1,33 @@
+<?php
+
+function autonumber_theme()
+{
+  // Register the theme for the autonumber default.
+  return array('autonumber_default' => array('variables' => array('autonumber_id' => NULL)));
+}
+
+/**
+ * Implements hook_help().
+ */
+function autonumber_help($route_name, RouteMatchInterface $route_match) {
+  switch ($route_name) {
+    case 'help.page.autonumber':
+      $output = '';
+      $output .= '<h3>' . t('About') . '</h3>';
+      $output .= '<p>' . t('Defines autonumber field type.') . '</p>';
+      return $output;
+  }
+}
+
+/**
+ * Theme function for the autonumber default.
+ *
+ * @param array $variables
+ *   Theme variables.
+ *
+ * @return array
+ *   Theme variables.
+ */
+function theme_autonumber_default(array $variables) {
+  return $variables['autonumber_id'];
+}

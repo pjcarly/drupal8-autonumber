@@ -1,0 +1,7 @@
+name: Autonumber
+type: module
+description: Defines an autonumber field type
+package: Field types
+core: 8.x
+dependencies:
+  - drupal:field
