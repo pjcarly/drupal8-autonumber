@@ -15,7 +15,7 @@ use Drupal\Core\Entity\Sql\DefaultTableMapping;
  * Plugin implementation of the 'Autonumber' field type.
  *
  * @FieldType(
- *   id = "Autonumber",
+ *   id = "autonumber",
  *   label = @Translation("Autonumber"),
  *   module = "field_example",
  *   description = @Translation("Automatic generated number field."),
