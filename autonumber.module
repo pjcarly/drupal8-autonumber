@@ -1,5 +1,25 @@
 <?php
 
+function autonumber_entity_presave($entity)
+{
+  /** @var \Drupal\Core\Entity\ContentEntityInterface $entity */
+  if (!$entity instanceof \Drupal\Core\Entity\ContentEntityBase) {
+    return;
+  }
+
+  foreach ($entity->getFields() as $fieldName => $field)
+  {
+    $fieldDefinition = $field->getFieldDefinition();
+    if ($fieldDefinition->getType() !== 'autonumber') {
+      // Only fields of type autonumber need to be configured
+      continue;
+    }
+
+    $processor = new \Drupal\autonumber\FieldProcessor\Processor($entity, $fieldDefinition);
+    $processor->process();
+  }
+}
+
 function autonumber_theme()
 {
   // Register the theme for the autonumber default.
