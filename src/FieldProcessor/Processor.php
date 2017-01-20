@@ -44,7 +44,8 @@ class Processor
 
       $entity = $this->getEntity();
       $groupingvalue = $this->getGroupingValue();
-      $nextValue = $this->getNextValueForGrouping($groupingvalue);
+      $manualGrouping = empty($entity->$field->manual_grouping) ? null : $entity->$field->manual_grouping;
+      $nextValue = $this->getNextValueForGrouping($groupingvalue, $manualGrouping);
 
       $entity->$field->value = $nextValue;
       $entity->$field->auto_grouping_pattern = $this->getSetting('auto_grouping_pattern');
