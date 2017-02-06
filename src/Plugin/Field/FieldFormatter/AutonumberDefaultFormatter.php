@@ -36,7 +36,7 @@ class AutonumberDefaultFormatter extends FormatterBase
         '#markup' => \Drupal::service('renderer')->render($source),
       ];
     }
-    
+
     return $elements;
   }
 }
