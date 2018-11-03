@@ -40,7 +40,6 @@ class AutonumberItem extends FieldItemBase implements FieldItemInterface
    */
   public static function schema(FieldStorageDefinitionInterface $field_definition)
   {
-    // dump('2');die;
     return [
       'columns' => [
         'auto_grouping_pattern' => [
@@ -73,7 +72,6 @@ class AutonumberItem extends FieldItemBase implements FieldItemInterface
    */
   public static function propertyDefinitions(FieldStorageDefinitionInterface $field_definition)
   {
-    // dump('3');die;
     $properties = [];
     $properties['auto_grouping_pattern'] = DataDefinition::create('string')->setLabel(t('The pattern used for creating the auto grouping.'));
     $properties['auto_grouping'] = DataDefinition::create('string')->setLabel(t('The auto grouping.'));
@@ -88,14 +86,14 @@ class AutonumberItem extends FieldItemBase implements FieldItemInterface
    */
   public function fieldSettingsForm(array $form, FormStateInterface $form_state)
   {
-    $element = array();
+    $element = [];
 
-    $element['auto_grouping_pattern'] = array(
+    $element['auto_grouping_pattern'] = [
       '#type' => 'textfield',
       '#title' => t('Grouping Pattern'),
       '#default_value' => $this->getSetting('auto_grouping_pattern'),
       '#description' => t('Patterns available YYYY, QQ, MM, DD'),
-    );
+    ];
 
     return $element;
   }
