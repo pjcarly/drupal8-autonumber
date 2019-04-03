@@ -1,29 +1,49 @@
 <?php
 
-function autonumber_entity_presave($entity)
-{
+use Drupal\autonumber\FieldProcessor\Processor;
+use Drupal\Core\Entity\ContentEntityBase;
+
+/**
+ * Implements hook_entity_presave().
+ */
+function autonumber_entity_presave($entity) {
   /** @var \Drupal\Core\Entity\ContentEntityInterface $entity */
-  if (!$entity instanceof \Drupal\Core\Entity\ContentEntityBase) {
+  if (!$entity instanceof ContentEntityBase) {
     return;
   }
 
-  foreach ($entity->getFields() as $fieldName => $field)
-  {
+  foreach ($entity->getFields() as $fieldName => $field) {
     $fieldDefinition = $field->getFieldDefinition();
+    // Only fields of type autonumber need to be configured
     if ($fieldDefinition->getType() !== 'autonumber') {
-      // Only fields of type autonumber need to be configured
       continue;
     }
 
-    $processor = new \Drupal\autonumber\FieldProcessor\Processor($entity, $fieldDefinition);
-    $processor->process();
+    $doProcess = \Drupal::moduleHandler()->invokeAll('autonumber_should_process', [
+      'entity' => $entity,
+      'field' => $fieldDefinition,
+    ]);
+
+    if (in_array(FALSE, $doProcess)) {
+      continue;
+    }
+
+    (new Processor($entity, $fieldDefinition))->process();
   }
 }
 
-function autonumber_theme()
-{
+/**
+ * Implements hook_theme().
+ */
+function autonumber_theme() {
   // Register the theme for the autonumber default.
-  return array('autonumber_default' => array('variables' => array('autonumber_id' => NULL)));
+  return [
+    'autonumber_default' => [
+      'variables' => [
+        'autonumber_id' => NULL,
+      ],
+    ],
+  ];
 }
 
 /**
