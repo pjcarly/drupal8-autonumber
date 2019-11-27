@@ -1,12 +1,14 @@
 <?php
 
 use Drupal\autonumber\FieldProcessor\Processor;
+use Drupal\autonumber\FieldProcessor\ProcessorInterface;
 use Drupal\Core\Entity\ContentEntityBase;
 
 /**
  * Implements hook_entity_presave().
  */
-function autonumber_entity_presave($entity) {
+function autonumber_entity_presave($entity)
+{
   /** @var \Drupal\Core\Entity\ContentEntityInterface $entity */
   if (!$entity instanceof ContentEntityBase) {
     return;
@@ -14,28 +16,30 @@ function autonumber_entity_presave($entity) {
 
   foreach ($entity->getFields() as $fieldName => $field) {
     $fieldDefinition = $field->getFieldDefinition();
-    // Only fields of type autonumber need to be configured
-    if ($fieldDefinition->getType() !== 'autonumber') {
+    // Only fields of type autonumber need to be configured, and only if the autonumber does not have a value yet, should we generate a new autonumber
+    if ($fieldDefinition->getType() !== 'autonumber' || $entity->{$fieldName}->value) {
       continue;
     }
 
-    $doProcess = \Drupal::moduleHandler()->invokeAll('autonumber_should_process', [
+    /** @var Processor[] $processors */
+    $processors = \Drupal::moduleHandler()->invokeAll('autonumber_processor_alter', [
       'entity' => $entity,
       'field' => $fieldDefinition,
     ]);
 
-    if (in_array(FALSE, $doProcess)) {
-      continue;
+    if (!empty($processors) && ($lastProcessor = end($processors)) && $lastProcessor instanceof ProcessorInterface) {
+      $lastProcessor->process();
+    } else {
+      (new Processor($entity, $fieldDefinition))->process();
     }
-
-    (new Processor($entity, $fieldDefinition))->process();
   }
 }
 
 /**
  * Implements hook_theme().
  */
-function autonumber_theme() {
+function autonumber_theme()
+{
   // Register the theme for the autonumber default.
   return [
     'autonumber_default' => [
@@ -49,7 +53,8 @@ function autonumber_theme() {
 /**
  * Implements hook_help().
  */
-function autonumber_help($route_name, $route_match) {
+function autonumber_help($route_name, $route_match)
+{
   switch ($route_name) {
     case 'help.page.autonumber':
       $output = '';
@@ -68,6 +73,7 @@ function autonumber_help($route_name, $route_match) {
  * @return array
  *   Theme variables.
  */
-function theme_autonumber_default(array $variables) {
+function theme_autonumber_default(array $variables)
+{
   return $variables['autonumber_id'];
 }

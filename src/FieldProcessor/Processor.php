@@ -1,15 +1,18 @@
 <?php
+
 namespace Drupal\autonumber\FieldProcessor;
 
 use \Drupal\field\Entity\FieldConfig;
 use \Drupal\Core\Entity\ContentEntityBase;
+use Drupal\datetime\Plugin\Field\FieldType\DateTimeItemInterface;
 
 /**
  * Class Processor
  *
  * @package Drupal\autonumber\FieldProcessor
  */
-class Processor {
+class Processor implements ProcessorInterface
+{
 
   /**
    * @var \Drupal\Core\Entity\ContentEntityBase
@@ -20,6 +23,11 @@ class Processor {
    * @var \Drupal\field\Entity\FieldConfig
    */
   private $fieldDefinition;
+
+  /**
+   * @var string
+   */
+  private $dateFieldName;
 
   /**
    * Processor constructor.
@@ -38,21 +46,24 @@ class Processor {
   /**
    * @return string
    */
-  public function getFieldName() {
+  public function getFieldName()
+  {
     return $this->fieldDefinition->getName();
   }
 
   /**
    * @return string
    */
-  public function getEntityType() {
+  public function getEntityType()
+  {
     return $this->entity->getEntityTypeId();
   }
 
   /**
    * @return \Drupal\Core\Entity\ContentEntityBase
    */
-  public function getEntity() {
+  public function getEntity()
+  {
     return $this->entity;
   }
 
@@ -61,27 +72,28 @@ class Processor {
    *
    * @return mixed
    */
-  public function getSetting($setting) {
+  public function getSetting($setting)
+  {
     return $this->fieldDefinition->getSetting($setting);
   }
 
   /**
-   *
+   * @return void
    */
-  public function process() {
+  public function process()
+  {
     if ($this->shouldUpdateValue()) {
       $field = $this->getFieldName();
 
       $entity = $this->getEntity();
       $groupingvalue = $this->getGroupingValue();
-      $manualGrouping = empty($entity->$field->manual_grouping) ? NULL : $entity->$field->manual_grouping;
+      $manualGrouping = empty($entity->{$field}->manual_grouping) ? NULL : $entity->{$field}->manual_grouping;
       $nextValue = $this->getNextValueForGrouping($groupingvalue, $manualGrouping);
 
-      $entity->$field->value = $nextValue;
-      $entity->$field->auto_grouping_pattern = $this->getSetting('auto_grouping_pattern');
-      $entity->$field->auto_grouping = $this->getGroupingValue();
-    }
-    else {
+      $entity->{$field}->value = $nextValue;
+      $entity->{$field}->auto_grouping_pattern = $this->getSetting('auto_grouping_pattern');
+      $entity->{$field}->auto_grouping = $this->getGroupingValue();
+    } else {
       $this->restoreOldValues();
     }
   }
@@ -89,33 +101,95 @@ class Processor {
   /**
    * @return bool
    */
-  private function shouldUpdateValue() {
+  private function shouldUpdateValue()
+  {
     $entity = $this->getEntity();
     $field = $this->getFieldName();
-    return empty($entity->original) || empty($entity->original->$field->value);
+    return empty($entity->original) || empty($entity->original->{$field}->value);
   }
 
   /**
    *
    */
-  private function restoreOldValues() {
+  private function restoreOldValues()
+  {
     $entity = $this->getEntity();
     $field = $this->getFieldName();
 
-    $entity->$field->value = $entity->original->$field->value;
-    $entity->$field->auto_grouping_pattern = $entity->original->$field->auto_grouping_pattern;
-    $entity->$field->auto_grouping = $entity->original->$field->auto_grouping;
+    $entity->{$field}->value = $entity->original->{$field}->value;
+    $entity->{$field}->auto_grouping_pattern = $entity->original->{$field}->auto_grouping_pattern;
+    $entity->{$field}->auto_grouping = $entity->original->{$field}->auto_grouping;
+  }
+
+  /**
+   * Returns the date field to use, to generate the grouping with
+   *
+   * @return string
+   */
+  public function getDateField(): string
+  {
+    return $this->dateFieldName ?? 'created';
+  }
+
+  /**
+   * Sets the date field to use, to generate the grouping with
+   *
+   * @return Processor
+   */
+  public function setDateField(string $value): Processor
+  {
+    $dateFieldDefinition = $this->entity->getFieldDefinition($value);
+
+    if (!$dateFieldDefinition || !in_array($dateFieldDefinition->getType(), ['changed', 'created', 'timestamp', 'datetime'])) {
+      throw new \Exception('Provided custom date field does not exist or is not of a date or timestamp type');
+    }
+
+    return $this;
+  }
+
+  public function getDateForGroupingPattern(): \DateTimeImmutable
+  {
+    $datefield = $this->getDateField();
+    $dateFieldValue = $this->entity->{$datefield}->value;
+
+    if (empty($dateFieldValue)) {
+      throw new \Exception('Value of the provided date field is empty');
+    }
+
+    $returnValue = null;
+    $dateFieldDefinition = $this->entity->getFieldDefinition($datefield);
+    switch ($dateFieldDefinition->getType()) {
+      case 'changed':
+      case 'created':
+      case 'timestamp':
+        $returnValue = \DateTimeImmutable::createFromFormat('U', $dateFieldValue, new \DateTimeZone(DateTimeItemInterface::STORAGE_TIMEZONE));
+        break;
+      case 'datetime':
+        $fieldSettingsDatetimeType = $dateFieldDefinition->getItemDefinition()->getSettings()['datetime_type'];
+        if ($fieldSettingsDatetimeType === 'date') {
+          $returnValue = \DateTimeImmutable::createFromFormat(DateTimeItemInterface::DATE_STORAGE_FORMAT, $dateFieldValue, new \DateTimeZone(DateTimeItemInterface::STORAGE_TIMEZONE));
+        } else if ($fieldSettingsDatetimeType === 'datetime') {
+          $returnValue = \DateTimeImmutable::createFromFormat(DateTimeItemInterface::DATETIME_STORAGE_FORMAT, $dateFieldValue, new \DateTimeZone(DateTimeItemInterface::STORAGE_TIMEZONE));
+        }
+        break;
+      default:
+        throw new \Exception('Unsupported date field type');
+    }
+
+    return $returnValue;
   }
 
   /**
    * @return string
    */
-  private function getGroupingValue() {
-    $entity = $this->getEntity();
-    $year = date('Y', $entity->created->value);
-    $quarter = $this->getQuarter($entity->created->value);
-    $month = date('m', $entity->created->value);
-    $day = date('d', $entity->created->value);
+  private function getGroupingValue()
+  {
+    $date = $this->getDateForGroupingPattern();
+
+    $year = $date->format('Y');
+    $quarter = ceil($date->format('n') / 3);
+    $month = $date->format('m');
+    $day = $date->format('d');
 
     $groupingPattern = $this->getSetting('auto_grouping_pattern');
 
@@ -129,15 +203,6 @@ class Processor {
     $groupingValue .= strstr($groupingPattern, 'DD') ? $day : 'DD';
 
     return $groupingValue;
-  }
-
-  /**
-   * @param $date
-   *
-   * @return float
-   */
-  private function getQuarter($date) {
-    return ceil(date('n', $date)/3);
   }
 
   /**
@@ -177,5 +242,4 @@ class Processor {
     // We increase it with 1
     return ++$currentMaxValue;
   }
-
 }
